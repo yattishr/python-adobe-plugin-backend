@@ -13,7 +13,6 @@ from typing import List, Optional
 import instructor
 import google.generativeai as genai
 import logging
-from googletrans import Translator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -93,7 +92,7 @@ def read_csv_data(file: UploadFile, sample_size=1000):
 def dataframe_to_text(df: pd.DataFrame):
     return df.to_csv(index=False)
 
-async def send_data_to_gemini(data: str, description: str, creativity_level: int, max_retries=3):
+async def send_data_to_gemini(data: str, description: str, creativity_level: int, language: str, max_retries=3):
     # print the incoming Creativity level
     logger.info(f"Incoming Creativity level: {creativity_level}")
 
@@ -140,8 +139,18 @@ async def send_data_to_gemini(data: str, description: str, creativity_level: int
                 ],
                 response_model=AnalysisResponse
             )
-            logger.info("Response completed.")
-            return response
+            
+            # Translate the response
+            translation_prompt = f"Translate the following JSON response to {language}:\n```\n{json.dumps(response.dict())}\n```"
+            translation_response = client.messages.create(
+                messages=[
+                    {"role": "user", "content": translation_prompt}
+                ],
+                response_model=AnalysisResponse
+            )
+            logger.info("Translation completed.")
+            return translation_response
+        
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
             raise HTTPException(status_code=500, detail="Failed to parse Gemini response as JSON")
@@ -156,7 +165,7 @@ async def send_data_to_gemini(data: str, description: str, creativity_level: int
                 raise HTTPException(status_code=500, detail=f"Error in Gemini API: {str(e)}")
 
 @app.post("/analyze", response_model=AnalysisResponse)
-async def analyze_csv(file: UploadFile = File(...), description: str = Form(...), creativity_level: Optional[int] = Form(50), language: Optional[str] = Form("french")):
+async def analyze_csv(file: UploadFile = File(...), description: str = Form(...), creativity_level: Optional[int] = Form(50), language: Optional[str] = Form("english")):
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Only CSV files are allowed")
 
@@ -165,12 +174,8 @@ async def analyze_csv(file: UploadFile = File(...), description: str = Form(...)
             df = read_csv_data(file, sample_size=1000)
             data = dataframe_to_text(df)
             print("Logging incoming creativity_level: ", creativity_level)
-            response = await send_data_to_gemini(data, description, creativity_level)
-            
-            # Translate the response
-            translator = Translator()
-            translated_response = translator.translate(json.dumps(response.dict()), dest=language).text
-            return json.loads(translated_response)
+            response = await send_data_to_gemini(data, description, creativity_level, language)
+            return response
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
             raise HTTPException(status_code=500, detail="Failed to parse Gemini response as JSON")

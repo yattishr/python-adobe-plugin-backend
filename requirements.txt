@@ -13,8 +13,8 @@ dnspython==2.6.1
 docstring_parser==0.16
 email_validator==2.2.0
 environ==1.0
-fastapi==0.111.1
-fastapi-cli==0.0.4
+fastapi
+fastapi-cli
 frozenlist==1.4.1
 google-ai-generativelanguage==0.6.6
 google-api-core==2.19.1
@@ -39,7 +39,7 @@ MarkupSafe==2.1.5
 mdurl==0.1.2
 multidict==6.0.5
 numpy==2.0.1
-openai==1.37.0
+openai
 pandas==2.2.2
 proto-plus==1.24.0
 protobuf==4.25.3
