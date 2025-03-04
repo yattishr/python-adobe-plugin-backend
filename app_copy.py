@@ -9,11 +9,11 @@ import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List
 import instructor
 import google.generativeai as genai
+import google.ai.generativelanguage as glm
 import logging
-from googletrans import Translator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -53,9 +53,14 @@ class AnalysisResponse(BaseModel):
     conclusion: str
 
 # Create instructor client
-client = instructor.from_gemini(
-    client=genai.GenerativeModel(model_name="gemini-1.5-pro"),
-    mode=instructor.Mode.GEMINI_JSON,
+# client = instructor.from_gemini(
+#     client=genai.GenerativeModel(model_name="gemini-1.5-pro"),
+#     mode=instructor.Mode.GEMINI_JSON,
+# )
+
+client = genai.GenerativeModel(
+    model_name="gemini-1.5-flash-latest",
+    tools=[translateText, transformText]
 )
 
 # Semaphore to limit the number of concurrent requests
@@ -156,7 +161,7 @@ async def send_data_to_gemini(data: str, description: str, creativity_level: int
                 raise HTTPException(status_code=500, detail=f"Error in Gemini API: {str(e)}")
 
 @app.post("/analyze", response_model=AnalysisResponse)
-async def analyze_csv(file: UploadFile = File(...), description: str = Form(...), creativity_level: Optional[int] = Form(50), language: Optional[str] = Form("french")):
+async def analyze_csv(file: UploadFile = File(...), description: str = Form(...), creativity_level: int = Form(...)):    
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Only CSV files are allowed")
 
@@ -166,11 +171,7 @@ async def analyze_csv(file: UploadFile = File(...), description: str = Form(...)
             data = dataframe_to_text(df)
             print("Logging incoming creativity_level: ", creativity_level)
             response = await send_data_to_gemini(data, description, creativity_level)
-            
-            # Translate the response
-            translator = Translator()
-            translated_response = translator.translate(json.dumps(response.dict()), dest=language).text
-            return json.loads(translated_response)
+            return response
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
             raise HTTPException(status_code=500, detail="Failed to parse Gemini response as JSON")
