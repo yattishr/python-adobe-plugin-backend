@@ -37,6 +37,9 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
     raise ValueError("GOOGLE_API_KEY is not set in the environment variables")
 
+model_gemma="gemma-3-27b-it"
+model_gemini="gemini-2.0-flash-exp"
+
 # Configure Gemini
 genai.configure(api_key=GOOGLE_API_KEY)
 
@@ -53,7 +56,7 @@ class AnalysisResponse(BaseModel):
 
 # Create instructor client
 client = instructor.from_gemini(
-    client=genai.GenerativeModel(model_name="gemini-1.5-pro"),
+    client=genai.GenerativeModel(model_name=model_gemini),
     mode=instructor.Mode.GEMINI_JSON,
 )
 
